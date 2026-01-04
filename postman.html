@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮差剧制 | 素材领取</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .btn-gradient { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+        /* 强制图片比例为 1:1 */
+        .square-img { aspect-ratio: 1 / 1; object-fit: cover; }
+        /* 激活状态缩放反馈 */
+        .img-item:active { transform: scale(0.95); opacity: 0.7; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center pb-12 px-4">
+
+    <div class="w-full max-w-md bg-white rounded-b-2xl shadow-sm p-5 mb-6 text-center border-b border-slate-100">
+        <h1 class="text-lg font-bold text-slate-800 tracking-widest">《抓小三》角色档案</h1>
+        <p id="role-name" class="text-orange-500 text-xs mt-1 font-bold">加载中...</p>
+    </div>
+
+    <div class="w-full max-w-md space-y-5">
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-slate-800 font-bold text-sm flex items-center">
+                    <span class="w-5 h-5 bg-slate-800 text-white text-[10px] flex items-center justify-center rounded-full mr-2">1</span>
+                    保存专属素材 (共5张)
+                </h2>
+            </div>
+            
+            <div id="image-grid" class="grid grid-cols-3 gap-2">
+                <div class="rounded-lg border-2 border-dashed border-slate-100 flex items-center justify-center text-slate-200 text-xs aspect-square">?</div>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-4 text-center italic">顺次长按上方图片保存至相册</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+            <h2 class="text-slate-800 font-bold text-sm flex items-center mb-4">
+                <span class="w-5 h-5 bg-slate-800 text-white text-[10px] flex items-center justify-center rounded-full mr-2">2</span>
+                领取角色自白
+            </h2>
+            <div id="review-box" class="bg-slate-50 border border-slate-100 rounded-xl p-4 text-slate-600 text-sm leading-relaxed mb-4">
+                档案读取中...
+            </div>
+            <button onclick="copyAndJump()" class="w-full btn-gradient text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
+                复制文案并评价
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        const roleData = {
+            "0": {
+                name: "【 1号位 · 角色名 】",
+                text: "撕得爽！在邮差这儿彻底释放天性了😂。这个本简直是大型处刑现场，反转多到怀疑人生。#剧本杀 #抓小三",
+                imgs: ["img1.jpg", "img2.jpg", "img3.jpg", "img4.jpg", "img5.jpg"]
+            },
+            "1": {
+                name: "【 2号位 · 角色名 】",
+                text: "救命🆘！邮差带节奏贼稳。本来以为看狗血剧，结果自己才是主角……这种合法的发疯真的太解压了！🍗 #欢乐本",
+                imgs: ["r2_1.jpg", "r2_2.jpg", "r2_3.jpg", "r2_4.jpg", "r2_5.jpg"]
+            }
+            // 更多角色...
+        };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get('id') || "0";
+        const current = roleData[id] || roleData["0"];
+
+        document.getElementById('role-name').innerText = current.name;
+        document.getElementById('review-box').innerText = current.text;
+
+        const grid = document.getElementById('image-grid');
+        // 动态插入图片到占位符之前
+        current.imgs.forEach(src => {
+            const img = document.createElement('img');
+            img.src = src; 
+            img.className = "rounded-lg w-full square-img img-item bg-slate-100 shadow-sm";
+            grid.insertBefore(img, grid.lastElementChild);
+        });
+
+        function copyAndJump() {
+            navigator.clipboard.writeText(current.text).then(() => {
+                alert('✅ 文案已复制！\n即将为您跳转大众点评...');
+                setTimeout(() => {
+                    window.location.href = "https://m.dianping.com"; 
+                }, 400);
+            });
+        }
+    </script>
+</body>
+</html>
