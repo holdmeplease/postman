@@ -83,12 +83,43 @@
         });
 
         function copyAndJump() {
-            navigator.clipboard.writeText(current.text).then(() => {
-                alert('✅ 文案已复制！\n即将为您跳转大众点评...');
+            const text = document.getElementById('review-box').innerText;
+        
+            // 1. 使用传统+现代双重写入，确保剪贴板写入成功
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy'); // 兼容性最好的传统方法
+                console.log("传统复制成功");
+            } catch (err) {
+                // 如果传统方法失败，尝试现代 API
+                navigator.clipboard.writeText(text);
+            }
+            document.body.removeChild(textArea);
+        
+            // 2. 弹出提示（关键：弹窗会给用户一个心理缓冲，同时给系统处理剪贴板的时间）
+            alert('✅ 文案已准备就绪！\n即将尝试为您直接打开大众点评。');
+        
+            // 3. 执行深度链接跳转
+            // 优先尝试拉起 APP 的特定页面（这里是点评首页或搜索页）
+            const schemeUrl = "dianping://search"; // 大众点评的 Scheme
+            const universalLink = "https://m.dianping.com"; // 兜底 H5 链接
+        
+            // 延迟 500ms 执行跳转
+            setTimeout(() => {
+                // 在微信内，直接 href 跳转 scheme 经常被拦截，但有时能触发“是否离开微信”弹窗
+                window.location.href = schemeUrl;
+        
+                // 兜底逻辑：如果 2 秒后还没跳走，说明没装 APP 或协议被截，则跳 H5
                 setTimeout(() => {
-                    window.location.href = "https://m.dianping.com"; 
-                }, 400);
-            });
+                    if (!document.hidden) {
+                        window.location.href = universalLink;
+                    }
+                }, 2000);
+            }, 500);
         }
     </script>
 </body>
