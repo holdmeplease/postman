@@ -88,8 +88,30 @@
 
         // 2. 仅执行跳转操作（触发微信中转页）
         function testJumpOnly() {
-            // 故意不写复制逻辑，看微信是否会主动改写剪贴板
-            window.location.href = "https://m.dianping.com";
+            // 1. 定义不同平台的协议链接
+            // search 页面通常比 home 页面更容易在微信内被“放行”
+            const scheme = "dianping://search"; 
+            
+            // 2. 针对安卓的特殊意图协议 (Intent)
+            // 安卓微信有时能识别这种格式直接拉起 APP 进程
+            const androidIntent = "intent://search#Intent;scheme=dianping;package=com.dianping.v1;end";
+        
+            // 3. 执行跳转逻辑
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            
+            if (isAndroid) {
+                window.location.href = androidIntent;
+            } else {
+                window.location.href = scheme;
+            }
+        
+            // 4. 设定一个“降级”计时器
+            // 如果 2.5 秒后页面还在，说明没装 APP 或协议被微信彻底掐死，再走 H5 
+            setTimeout(() => {
+                if (!document.hidden) {
+                    window.location.href = "https://m.dianping.com";
+                }
+            }, 2500);
         }
 
         // 调试辅助：读取剪贴板内容
