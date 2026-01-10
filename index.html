@@ -9,107 +9,104 @@
         .btn-gradient {
             background: linear-gradient(135deg, #ff6b6b 0%, #ee0979 100%);
         }
-        .debug-panel {
-            background: #f8f9fa;
-            border: 1px dashed #ccc;
-            font-family: monospace;
+        /* 遮罩层动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
         }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen p-4 flex flex-col items-center">
 
-    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
-        <div id="role-image-container" class="aspect-square bg-gray-200 flex items-center justify-center">
-            <img id="role-image" src="" alt="角色图片" class="w-full h-full object-cover hidden">
-            <div id="loading-text" class="text-gray-400">正在加载图片...</div>
+    <div id="wx-mask" class="hidden fixed inset-0 bg-black/90 z-50 animate-fade-in flex flex-col items-end p-6">
+        <img src="https://img.icons8.com/ios/100/ffffff/curved-arrow.png" class="w-16 h-16 rotate-[270deg] mb-4">
+        <div class="text-white text-right space-y-4">
+            <h2 class="text-2xl font-bold">请点击右上角 [...]</h2>
+            <p class="text-lg text-gray-300">选择 <span class="text-pink-400 font-bold">[在浏览器打开]</span></p>
+            <div class="h-px bg-gray-700 my-4"></div>
+            <p class="text-sm text-gray-400 italic">以便一键完成“文案复制”与“APP跳转”</p>
+        </div>
+    </div>
+
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden mb-8 mt-4 border border-gray-100">
+        <div class="aspect-square bg-gray-100 relative">
+            <img id="role-img" src="" class="w-full h-full object-cover hidden">
+            <div id="img-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-400">正在准备角色...</div>
         </div>
         <div class="p-6">
-            <h2 id="role-name" class="text-2xl font-bold text-gray-800 mb-2">角色加载中...</h2>
-            <div id="review-box" class="bg-gray-50 p-4 rounded-lg text-gray-600 leading-relaxed border border-gray-100">
-                正在生成评价文案...
+            <h2 id="role-name" class="text-2xl font-black text-gray-800 mb-3">加载中...</h2>
+            <div id="review-box" class="bg-gray-50 p-4 rounded-2xl text-gray-600 leading-relaxed text-sm italic border border-gray-50">
+                加载中...
             </div>
         </div>
     </div>
 
-    <div class="w-full max-w-md space-y-4">
-        <div class="flex gap-3">
-            <button onclick="testCopyOnly()" class="flex-1 bg-white border-2 border-pink-500 text-pink-600 font-bold py-4 rounded-xl shadow-sm active:scale-95 transition-all">
-                1. 仅复制文案
-            </button>
-            
-            <button onclick="testJumpOnly()" class="flex-1 btn-gradient text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
-                2. 去点评 APP
-            </button>
-        </div>
-        
-        <p class="text-xs text-gray-400 text-center">测试说明：先点1复制，再点2跳转，观察进入APP后文案是否被微信覆盖</p>
-    </div>
-
-    <div class="w-full max-w-md mt-10 p-4 debug-panel rounded-lg">
-        <h3 class="text-xs font-bold text-gray-500 mb-2 uppercase">测试员调试区</h3>
-        <div class="flex flex-col gap-2">
-            <button onclick="checkClipboard()" class="text-xs bg-gray-200 py-1 rounded">点击检查当前剪贴板内容</button>
-            <div id="clip-status" class="text-[10px] text-red-500 break-all bg-white p-2 border">尚未检测...</div>
-        </div>
+    <div class="w-full max-w-md">
+        <button onclick="handleMainAction()" class="w-full btn-gradient text-white font-black py-5 rounded-2xl shadow-lg active:scale-95 transition-all text-lg flex items-center justify-center gap-2">
+            <span>复制文案并去评价</span>
+        </button>
+        <p class="text-center text-gray-400 text-xs mt-4">Powered by PSTMAN · 剧本杀评价助手</p>
     </div>
 
     <script>
-        // 获取 URL 参数
+        // 1. 初始化数据 (请替换为您 Python 脚本生成的逻辑)
         const urlParams = new URLSearchParams(window.location.search);
         const roleId = urlParams.get('id') || '0';
-
-        // 模拟评价数据（请根据您的实际需求修改）
         const roles = [
-            { name: "欧阳千金", img: "img1.jpg", text: "这次玩的剧本杀太精彩了！我抽到的欧阳千金角色很有深度，剧情反转再反转，强烈推荐给大家！" },
-            { name: "神秘管家", img: "img2.jpg", text: "管家这个角色真的太考验演技了，整场下来氛围感拉满，店员小姐姐服务也特别好。" }
+            { name: "欧阳千金", img: "img1.jpg", text: "这次玩的剧本杀太精彩了！我抽到的角色很有深度，剧情反转再反转，强烈推荐！" },
+            { name: "神秘管家", img: "img2.jpg", text: "整场下来氛围感拉满，店员小姐姐服务也特别好，评价必给五星！" }
         ];
-
-        // 初始化页面
         const role = roles[parseInt(roleId)] || roles[0];
         document.getElementById('role-name').innerText = role.name;
         document.getElementById('review-box').innerText = role.text;
-        const imgObj = document.getElementById('role-image');
-        imgObj.src = role.img;
-        imgObj.onload = () => {
-            imgObj.classList.remove('hidden');
-            document.getElementById('loading-text').classList.add('hidden');
+        const img = document.getElementById('role-img');
+        img.src = role.img;
+        img.onload = () => {
+            img.classList.remove('hidden');
+            document.getElementById('img-placeholder').classList.add('hidden');
         };
 
-        // --- 测试函数组 ---
-
-        // 1. 仅执行复制操作
-        function testCopyOnly() {
-            const text = document.getElementById('review-box').innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                alert("✅ 文案已存入剪贴板，请进行下一步跳转测试。");
-                checkClipboard();
-            });
+        // 2. 核心逻辑：判断环境并执行动作
+        function isWechat() {
+            return /MicroMessenger/i.test(navigator.userAgent);
         }
 
-        // 2. 仅执行跳转操作（触发微信中转页）
-        function testJumpOnly() {
-            const text = document.getElementById('review-box').innerText;
-            
-            // 1. 尝试跳转
-            window.location.href = "dianping://search";
-        
-            // 2. 核心：在跳转发生后的 2 秒内，每隔 100 毫秒强行复写一次剪贴板
-            // 试图在微信写入 6:// 之后，再把我们的文案覆盖上去
-            let count = 0;
-            const interval = setInterval(() => {
-                navigator.clipboard.writeText(text);
-                count++;
-                if (count > 20) clearInterval(interval); // 持续 2 秒后停止
-            }, 100);
-        }
+        // 页面加载时：如果是微信则直接显示遮罩，不再让用户多点一次按钮
+        window.onload = function() {
+            if (isWechat()) {
+                document.getElementById('wx-mask').classList.remove('hidden');
+            }
+        };
 
-        // 调试辅助：读取剪贴板内容
-        async function checkClipboard() {
+        async function handleMainAction() {
+            if (isWechat()) {
+                // 如果用户手动关闭了遮罩又点了按钮，再次显示遮罩
+                document.getElementById('wx-mask').classList.remove('hidden');
+                return;
+            }
+
+            // 在浏览器环境下的完美流程
+            const text = document.getElementById('review-box').innerText;
             try {
-                const text = await navigator.clipboard.readText();
-                document.getElementById('clip-status').innerText = text || "剪贴板是空的";
+                // 执行复制
+                await navigator.clipboard.writeText(text);
+                
+                // 执行跳转
+                // 使用 Scheme 直接唤起，浏览器环境通常会直接成功
+                window.location.href = "dianping://search";
+                
+                // 延迟保底跳转 H5
+                setTimeout(() => {
+                    if (!document.hidden) {
+                        window.location.href = "https://m.dianping.com";
+                    }
+                }, 2000);
+
             } catch (err) {
-                document.getElementById('clip-status').innerText = "提示：请先点击页面任意位置授予剪贴板读取权限";
+                alert("复制失败，请手动长按文字复制");
             }
         }
     </script>
