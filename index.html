@@ -3,109 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>邮差剧制 | 素材领取</title>
+    <title>剧本评价助手</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .btn-gradient { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
-        /* 强制图片比例为 1:1 */
-        .square-img { aspect-ratio: 1 / 1; object-fit: cover; }
-        /* 激活状态缩放反馈 */
-        .img-item:active { transform: scale(0.95); opacity: 0.7; }
+        .btn-gradient {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee0979 100%);
+        }
+        .debug-panel {
+            background: #f8f9fa;
+            border: 1px dashed #ccc;
+            font-family: monospace;
+        }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col items-center pb-12 px-4">
+<body class="bg-gray-50 min-h-screen p-4 flex flex-col items-center">
 
-    <div class="w-full max-w-md bg-white rounded-b-2xl shadow-sm p-5 mb-6 text-center border-b border-slate-100">
-        <h1 class="text-lg font-bold text-slate-800 tracking-widest">《抓小三》角色档案</h1>
-        <p id="role-name" class="text-orange-500 text-xs mt-1 font-bold">加载中...</p>
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
+        <div id="role-image-container" class="aspect-square bg-gray-200 flex items-center justify-center">
+            <img id="role-image" src="" alt="角色图片" class="w-full h-full object-cover hidden">
+            <div id="loading-text" class="text-gray-400">正在加载图片...</div>
+        </div>
+        <div class="p-6">
+            <h2 id="role-name" class="text-2xl font-bold text-gray-800 mb-2">角色加载中...</h2>
+            <div id="review-box" class="bg-gray-50 p-4 rounded-lg text-gray-600 leading-relaxed border border-gray-100">
+                正在生成评价文案...
+            </div>
+        </div>
     </div>
 
-    <div class="w-full max-w-md space-y-5">
-        
-        <div class="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-slate-800 font-bold text-sm flex items-center">
-                    <span class="w-5 h-5 bg-slate-800 text-white text-[10px] flex items-center justify-center rounded-full mr-2">1</span>
-                    保存专属素材 (共5张)
-                </h2>
-            </div>
+    <div class="w-full max-w-md space-y-4">
+        <div class="flex gap-3">
+            <button onclick="testCopyOnly()" class="flex-1 bg-white border-2 border-pink-500 text-pink-600 font-bold py-4 rounded-xl shadow-sm active:scale-95 transition-all">
+                1. 仅复制文案
+            </button>
             
-            <div id="image-grid" class="grid grid-cols-3 gap-2">
-                <div class="rounded-lg border-2 border-dashed border-slate-100 flex items-center justify-center text-slate-200 text-xs aspect-square">?</div>
-            </div>
-            <p class="text-[10px] text-slate-400 mt-4 text-center italic">顺次长按上方图片保存至相册</p>
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
-            <h2 class="text-slate-800 font-bold text-sm flex items-center mb-4">
-                <span class="w-5 h-5 bg-slate-800 text-white text-[10px] flex items-center justify-center rounded-full mr-2">2</span>
-                领取角色自白
-            </h2>
-            <div id="review-box" class="bg-slate-50 border border-slate-100 rounded-xl p-4 text-slate-600 text-sm leading-relaxed mb-4">
-                档案读取中...
-            </div>
-            <button onclick="copyAndJump()" class="w-full btn-gradient text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
-                复制文案并评价
+            <button onclick="testJumpOnly()" class="flex-1 btn-gradient text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
+                2. 去点评 APP
             </button>
         </div>
+        
+        <p class="text-xs text-gray-400 text-center">测试说明：先点1复制，再点2跳转，观察进入APP后文案是否被微信覆盖</p>
+    </div>
 
+    <div class="w-full max-w-md mt-10 p-4 debug-panel rounded-lg">
+        <h3 class="text-xs font-bold text-gray-500 mb-2 uppercase">测试员调试区</h3>
+        <div class="flex flex-col gap-2">
+            <button onclick="checkClipboard()" class="text-xs bg-gray-200 py-1 rounded">点击检查当前剪贴板内容</button>
+            <div id="clip-status" class="text-[10px] text-red-500 break-all bg-white p-2 border">尚未检测...</div>
+        </div>
     </div>
 
     <script>
-        const roleData = {
-            "0": {
-                name: "【 1号位 · 角色名 】",
-                text: "撕得爽！在邮差这儿彻底释放天性了😂。这个本简直是大型处刑现场，反转多到怀疑人生。#剧本杀 #抓小三",
-                imgs: ["img1.jpg", "img2.jpg", "img3.jpg", "img4.jpg", "img5.jpg"]
-            },
-            "1": {
-                name: "【 2号位 · 角色名 】",
-                text: "救命🆘！邮差带节奏贼稳。本来以为看狗血剧，结果自己才是主角……这种合法的发疯真的太解压了！🍗 #欢乐本",
-                imgs: ["r2_1.jpg", "r2_2.jpg", "r2_3.jpg", "r2_4.jpg", "r2_5.jpg"]
-            }
-            // 更多角色...
+        // 获取 URL 参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const roleId = urlParams.get('id') || '0';
+
+        // 模拟评价数据（请根据您的实际需求修改）
+        const roles = [
+            { name: "欧阳千金", img: "img1.jpg", text: "这次玩的剧本杀太精彩了！我抽到的欧阳千金角色很有深度，剧情反转再反转，强烈推荐给大家！" },
+            { name: "神秘管家", img: "img2.jpg", text: "管家这个角色真的太考验演技了，整场下来氛围感拉满，店员小姐姐服务也特别好。" }
+        ];
+
+        // 初始化页面
+        const role = roles[parseInt(roleId)] || roles[0];
+        document.getElementById('role-name').innerText = role.name;
+        document.getElementById('review-box').innerText = role.text;
+        const imgObj = document.getElementById('role-image');
+        imgObj.src = role.img;
+        imgObj.onload = () => {
+            imgObj.classList.remove('hidden');
+            document.getElementById('loading-text').classList.add('hidden');
         };
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('id') || "0";
-        const current = roleData[id] || roleData["0"];
+        // --- 测试函数组 ---
 
-        document.getElementById('role-name').innerText = current.name;
-        document.getElementById('review-box').innerText = current.text;
-
-        const grid = document.getElementById('image-grid');
-        // 动态插入图片到占位符之前
-        current.imgs.forEach(src => {
-            const img = document.createElement('img');
-            img.src = src; 
-            img.className = "rounded-lg w-full square-img img-item bg-slate-100 shadow-sm";
-            grid.insertBefore(img, grid.lastElementChild);
-        });
-
-        function copyAndJump() {
+        // 1. 仅执行复制操作
+        function testCopyOnly() {
             const text = document.getElementById('review-box').innerText;
-            
-            // 1. 写入文案
             navigator.clipboard.writeText(text).then(() => {
-                // 2. 这里的跳转链接非常关键
-                // 尝试直接呼起 APP 搜索页，看能否绕过小程序中转
-                const directAppUrl = "dianping://search?w=" + encodeURIComponent("剧本杀"); 
-                const fallbackUrl = "https://m.dianping.com";
-        
-                alert('✅ 文案已准备就绪！\n点击确定后，若提示“离开微信”，请点击“允许”。');
-        
-                setTimeout(() => {
-                    // 尝试直接拉起协议
-                    window.location.href = directAppUrl;
-        
-                    // 3秒后如果没跳走，说明协议被微信掐死了，再走 fallback
-                    setTimeout(() => {
-                        if (!document.hidden) {
-                            window.location.href = fallbackUrl;
-                        }
-                    }, 3000);
-                }, 500);
+                alert("✅ 文案已存入剪贴板，请进行下一步跳转测试。");
+                checkClipboard();
             });
+        }
+
+        // 2. 仅执行跳转操作（触发微信中转页）
+        function testJumpOnly() {
+            // 故意不写复制逻辑，看微信是否会主动改写剪贴板
+            window.location.href = "https://m.dianping.com";
+        }
+
+        // 调试辅助：读取剪贴板内容
+        async function checkClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('clip-status').innerText = text || "剪贴板是空的";
+            } catch (err) {
+                document.getElementById('clip-status').innerText = "提示：请先点击页面任意位置授予剪贴板读取权限";
+            }
         }
     </script>
 </body>
