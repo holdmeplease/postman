@@ -178,88 +178,87 @@
      * - iOS：先 scheme，失败再去官方“已安装打开”页
      ***********************/
       function jumpToApp() {
-        // 0) 微信内置：只引导去浏览器
+        // 0) 微信：只引导外部浏览器（你已经验证微信内不行）
         if (/MicroMessenger/i.test(navigator.userAgent)) {
           document.getElementById('wx-mask').classList.remove('hidden');
           toast("请先在浏览器打开本页，再唤起点评");
           return;
         }
       
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const ua = navigator.userAgent;
+        const isAndroid = /Android/i.test(ua);
       
-        // 1) 兜底页：优先官方“打开/下载”页
-        const officialOpenPage = "https://h5.dianping.com/app/app-m-user-growth/index.html";
-        // 2) 最终兜底：应用商店（很多安卓都支持，没装时更可靠）
+        // ✅ 1) 官方“唤起专用”页面（比下载中心更像用于 evoke）
+        const evokeUrl = "https://w.dianping.com/cube/evoke/dianping.html";
+        // ✅ 2) 最终兜底：应用商店（没装也不会卡死）
         const marketUrl = "market://details?id=com.dianping.v1";
       
-        // 3) 标记：是否切出去过（如果切到 App，页面会 hidden / blur）
+        // 用于判断是否真的切到 App（很多弹窗会阻塞 setTimeout）
         let didHide = false;
-      
         const markHide = () => { didHide = true; };
-        const onVis = () => { if (document.hidden) didHide = true; };
+        window.addEventListener("blur", markHide, { once: true });
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) didHide = true;
+        }, { once: true });
       
-        window.addEventListener('blur', markHide, { once: true });
-        document.addEventListener('visibilitychange', onVis, { once: true });
-      
-        // 4) 关键：因为“是否打开 App”的系统弹窗会阻塞 setTimeout
-        //    所以我们在“focus 回来”的时刻做兜底判断
         const start = Date.now();
       
-        function fallbackIfNeeded() {
+        // 关闭系统弹窗后通常会触发 focus：在这里做兜底（解决“弹窗阻塞计时器”）
+        const fallbackIfNeeded = () => {
           const dt = Date.now() - start;
-          // 只要没切出去（didHide=false），且已经过了足够时间，就认为没成功打开
-          if (!didHide && dt > 800) {
-            // 先去官方页（可能触发 AppLink/引导打开）
-            window.location.href = officialOpenPage;
+          if (!didHide && dt > 600) {
+            // 先去 evoke（可能会拉起/否则引导下载）
+            window.location.href = evokeUrl;
       
-            // 再兜底：2s 后跳应用商店（官方页也没拉起来时）
+            // 再兜底：2s 后去商店（避免一直停留在 evoke 也打不开的场景）
             setTimeout(() => {
-              // 如果用户还在当前浏览器页面，继续兜底到 market
               window.location.href = marketUrl;
             }, 2000);
           }
-        }
+        };
+        window.addEventListener("focus", fallbackIfNeeded, { once: true });
       
-        // 弹窗关闭后通常会触发 focus（重点：解决“弹窗阻塞导致计时器不跑”）
-        window.addEventListener('focus', fallbackIfNeeded, { once: true });
+        // ========= 真实唤起逻辑 =========
       
-        // 5) 真正的唤起逻辑
         if (isAndroid) {
-          // ✅ 更兼容的 intent：带 host/path，并把 fallback_url 写进去
-          const fallback = encodeURIComponent(officialOpenPage);
+          // A) 先试 scheme（Firefox/系统浏览器都可能尝试）
+          // 用 iframe 方式比直接 location.href 在部分浏览器更不容易破坏当前页
+          const iframe = document.createElement("iframe");
+          iframe.style.display = "none";
+          iframe.src = "dianping://";
+          document.body.appendChild(iframe);
+          setTimeout(() => document.body.removeChild(iframe), 800);
       
-          // 你可以把 open/page、参数等改成你更想要的路径，这里用一个“通用打开”
-          const intentUrl =
-            "intent://dianping/open?src=qr#Intent;" +
-            "scheme=dianping;" +
-            "package=com.dianping.v1;" +
-            "action=android.intent.action.VIEW;" +
-            "category=android.intent.category.BROWSABLE;" +
-            "launchFlags=0x10000000;" + // 新任务栈打开
-            "S.browser_fallback_url=" + fallback + ";" +
-            "end";
+          // B) 对“支持 intent 的浏览器”（多数 Chrome/系统 WebView）再补 intent
+          // Firefox 一般不吃 intent，所以我们用 UA 排除它，避免跳到奇怪页面
+          const isFirefox = /Firefox/i.test(ua);
+          if (!isFirefox) {
+            const fallback = encodeURIComponent(evokeUrl);
+            const intentUrl =
+              "intent://dianping/open#Intent;" +
+              "scheme=dianping;" +
+              "package=com.dianping.v1;" +
+              "action=android.intent.action.VIEW;" +
+              "category=android.intent.category.BROWSABLE;" +
+              "launchFlags=0x10000000;" +
+              "S.browser_fallback_url=" + fallback + ";" +
+              "end";
+            // 用 replace 减少历史栈问题
+            setTimeout(() => window.location.replace(intentUrl), 150);
+          }
       
-          // 用 replace 避免历史栈污染（有些机型体验更好）
-          window.location.replace(intentUrl);
-      
-          // ✅ 再加一层兜底：如果“没弹窗/没切走”，计时器还是能跑
+          // C) 计时兜底（若弹窗阻塞，focus 兜底会接管；若没阻塞，timeout 兜底也能跑）
           setTimeout(fallbackIfNeeded, 1400);
           return;
         }
       
-        if (isIOS) {
-          // iOS 先 scheme，再兜底官方页
-          window.location.href = "dianping://";
-          setTimeout(() => {
-            if (!didHide) window.location.href = officialOpenPage;
-          }, 1200);
-          return;
-        }
-      
-        // 其它平台
-        window.location.href = officialOpenPage;
+        // iOS（你后面再测）：先 scheme，失败去 evoke
+        window.location.href = "dianping://";
+        setTimeout(() => {
+          if (!didHide) window.location.href = evokeUrl;
+        }, 1200);
       }
+
 
 
     // 点击遮罩任意区域关闭（方便调试）
