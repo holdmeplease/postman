@@ -1,134 +1,262 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>剧本评价助手 - 调试版</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .btn-gradient { background: linear-gradient(135deg, #ff6b6b 0%, #ee0979 100%); }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>剧本评价助手 - 调试版</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .btn-gradient { background: linear-gradient(135deg, #ff6b6b 0%, #ee0979 100%); }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+  </style>
 </head>
+
 <body class="bg-gray-50 min-h-screen p-4 flex flex-col items-center">
 
-    <div id="wx-mask" class="hidden fixed inset-0 bg-black/90 z-50 animate-fade-in flex flex-col items-end p-6">
-        <img src="https://img.icons8.com/ios/100/ffffff/curved-arrow.png" class="w-16 h-16 rotate-[270deg] mb-4">
-        <div class="text-white text-right">
-            <h2 class="text-2xl font-bold">请点击右上角 [...]</h2>
-            <p class="text-lg">选择 <span class="text-pink-400 font-bold">[在浏览器打开]</span></p>
-        </div>
+  <!-- 微信引导遮罩 -->
+  <div id="wx-mask" class="hidden fixed inset-0 bg-black/90 z-50 animate-fade-in flex flex-col items-end p-6">
+    <img src="https://img.icons8.com/ios/100/ffffff/curved-arrow.png" class="w-16 h-16 rotate-[270deg] mb-4">
+    <div class="text-white text-right">
+      <h2 class="text-2xl font-bold">请点击右上角 [...]</h2>
+      <p class="text-lg">选择 <span class="text-pink-400 font-bold">[在浏览器打开]</span></p>
+      <p class="text-sm mt-2 opacity-80">在浏览器中再点“打开点评 APP”，可避免剪贴板被覆盖</p>
     </div>
+  </div>
 
-    <div class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden mb-6 mt-4">
-        <div class="aspect-square bg-gray-100 relative">
-            <img id="role-img" src="" class="w-full h-full object-cover hidden">
-            <div id="img-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-400">正在准备角色...</div>
-        </div>
-        <div class="p-6">
-            <h2 id="role-name" class="text-2xl font-black text-gray-800 mb-2">加载中...</h2>
-            <div id="review-box" class="bg-gray-50 p-4 rounded-2xl text-gray-600 leading-relaxed text-sm">正在加载文案...</div>
-        </div>
+  <!-- Toast -->
+  <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-sm px-4 py-2 rounded-full z-50 animate-fade-in">
+    提示
+  </div>
+
+  <div class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden mb-6 mt-4">
+    <div class="aspect-square bg-gray-100 relative">
+      <img id="role-img" src="" class="w-full h-full object-cover hidden">
+      <div id="img-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-400">正在准备角色...</div>
     </div>
+    <div class="p-6">
+      <h2 id="role-name" class="text-2xl font-black text-gray-800 mb-2">加载中...</h2>
+      <div id="review-box" class="bg-gray-50 p-4 rounded-2xl text-gray-600 leading-relaxed text-sm">正在加载文案...</div>
 
-    <div class="w-full max-w-md space-y-4">
-        <div class="flex gap-3">
-            <button onclick="copyReviewText()" class="flex-1 bg-white border-2 border-pink-500 text-pink-600 font-bold py-4 rounded-xl active:scale-95 transition-all">
-                1. 复制评价文案
-            </button>
-            
-            <button onclick="jumpToApp()" class="flex-1 btn-gradient text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
-                2. 打开点评 APP
-            </button>
-        </div>
-        <p class="text-center text-gray-400 text-[10px]">调试模式：先点击1（若弹窗提示失败请手动长按），再点击2</p>
+      <!-- 新增：剪贴板恢复按钮（被覆盖时用） -->
+      <button id="restore-btn"
+              onclick="restoreCopy()"
+              class="hidden mt-4 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl active:scale-95 transition-all">
+        🔁 文案可能被覆盖，点我恢复复制
+      </button>
     </div>
+  </div>
 
-    <script>
-        // 1. 初始化数据
-        const urlParams = new URLSearchParams(window.location.search);
-        const roleId = urlParams.get('id') || '0';
-        const roles = [
-            { name: "欧阳千金", img: "img1.jpg", text: "这次玩的剧本杀太精彩了！我抽到的角色很有深度，剧情反转再反转，强烈推荐！" },
-            { name: "神秘管家", img: "img2.jpg", text: "整场下来氛围感拉满，店员小姐姐服务也特别好，评价必给五星！" }
-        ];
-        const role = roles[parseInt(roleId)] || roles[0];
-        document.getElementById('role-name').innerText = role.name;
-        document.getElementById('review-box').innerText = role.text;
-        const img = document.getElementById('role-img');
-        img.src = role.img;
-        img.onload = () => { img.classList.remove('hidden'); document.getElementById('img-placeholder').classList.add('hidden'); };
+  <div class="w-full max-w-md space-y-4">
+    <div class="flex gap-3">
+      <button onclick="copyReviewText()" class="flex-1 bg-white border-2 border-pink-500 text-pink-600 font-bold py-4 rounded-xl active:scale-95 transition-all">
+        1. 复制评价文案
+      </button>
 
-        // 2. 微信环境检测
-        function isWechat() { return /MicroMessenger/i.test(navigator.userAgent); }
-        if (isWechat()) document.getElementById('wx-mask').classList.remove('hidden');
+      <button onclick="jumpToApp()" class="flex-1 btn-gradient text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
+        2. 打开点评 APP
+      </button>
+    </div>
+    <p class="text-center text-gray-400 text-[10px]">建议：先点1复制，再点2打开点评；若从别的页面回来发现文案没了，点“恢复复制”。</p>
+  </div>
 
-        // 3. 兼容性复制逻辑
-        async function copyReviewText() {
-            const text = document.getElementById('review-box').innerText;
-            
-            // 策略 A: 优先使用现代 API
-            if (navigator.clipboard && window.isSecureContext) {
-                try {
-                    await navigator.clipboard.writeText(text);
-                    alert("✅ 复制成功！请点击“打开点评”按钮");
-                    return;
-                } catch (err) { console.error("现代复制失败", err); }
-            }
+  <script>
+    /***********************
+     * 0) 小工具
+     ***********************/
+    function toast(msg, ms = 1600) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => el.classList.add('hidden'), ms);
+    }
 
-            // 策略 B: 传统输入框选中复制 (兜底)
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-9999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) alert("✅ 复制成功(兼容模式)！");
-                else throw new Error("Copy command failed");
-            } catch (err) {
-                alert("❌ 复制失败，请手动长按文案复制");
-            }
-            document.body.removeChild(textArea);
+    function isWechat() { return /MicroMessenger/i.test(navigator.userAgent); }
+    function isAndroid() { return /Android/i.test(navigator.userAgent); }
+    function isIOS() { return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
+
+    /***********************
+     * 1) 初始化数据
+     ***********************/
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleId = urlParams.get('id') || '0';
+    const roles = [
+      { name: "欧阳千金", img: "img1.jpg", text: "这次玩的剧本杀太精彩了！我抽到的角色很有深度，剧情反转再反转，强烈推荐！" },
+      { name: "神秘管家", img: "img2.jpg", text: "整场下来氛围感拉满，店员小姐姐服务也特别好，评价必给五星！" }
+    ];
+    const role = roles[parseInt(roleId)] || roles[0];
+
+    document.getElementById('role-name').innerText = role.name;
+    document.getElementById('review-box').innerText = role.text;
+
+    const img = document.getElementById('role-img');
+    img.src = role.img;
+    img.onload = () => {
+      img.classList.remove('hidden');
+      document.getElementById('img-placeholder').classList.add('hidden');
+    };
+
+    /***********************
+     * 2) 微信环境：只做引导，不尝试唤起
+     ***********************/
+    if (isWechat()) {
+      document.getElementById('wx-mask').classList.remove('hidden');
+    }
+
+    /***********************
+     * 3) 复制逻辑：复制成功后把文案持久化，防止被覆盖
+     ***********************/
+    async function copyReviewText() {
+      const text = document.getElementById('review-box').innerText;
+
+      // 存档：后面可“恢复复制”
+      localStorage.setItem('dp_review_text', text);
+      localStorage.setItem('dp_review_ts', String(Date.now()));
+      document.getElementById('restore-btn').classList.add('hidden');
+
+      // 策略 A: Clipboard API
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          toast("✅ 复制成功！现在点“打开点评 APP”");
+          return;
+        } catch (err) {
+          console.error("Clipboard API 失败", err);
         }
+      }
 
-        // 4. 跳转逻辑
-        function jumpToApp() {
-            const text = document.getElementById('review-box').innerText;
-            const isAndroid = /Android/i.test(navigator.userAgent);
-        
-            if (isAndroid) {
-                /**
-                 * 针对安卓的 Intent 优化
-                 * S.browser_fallback_url: 如果启动失败，跳转的备选地址（这里设为点评官网，或设为当前页避免离开）
-                 */
-                const intentUrl = "intent://search#Intent;scheme=dianping;package=com.dianping.v1;S.browser_fallback_url=https%3A%2F%2Fm.dianping.com;end";
-                
-                // 尝试通过隐藏的 iframe 或直接跳转来触发
-                window.location.href = intentUrl;
-            } else {
-                // iOS 逻辑
-                window.location.href = "dianping://search";
-            }
-        
-            /**
-             * 【关键】循环保底探测
-             * 如果 2.5 秒后 App 还是没拉起来，说明冷启动失败了
-             */
-            const startTime = Date.now();
-            const timer = setTimeout(() => {
-                const endTime = Date.now();
-                // 如果 endTime - startTime 远大于 2500ms，说明系统去尝试拉起 App 了（进程切换导致 JS 挂起）
-                // 如果时间差不多，说明 JS 一直在运行，App 没拉起来
-                if (endTime - startTime < 3000) {
-                    alert("检测到 App 启动较慢，请重试或确保大众点评在后台运行。");
-                    // 这里可以放回 m.dianping.com 的保底，但你会丢剪贴板
-                }
-            }, 2500);
+      // 策略 B: execCommand 兜底
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        const ok = document.execCommand('copy');
+        if (ok) toast("✅ 复制成功(兼容模式)！");
+        else throw new Error("execCommand copy failed");
+      } catch (err) {
+        toast("❌ 自动复制失败，请手动长按文案复制", 2200);
+      }
+      document.body.removeChild(textArea);
+    }
+
+    // 新增：恢复复制
+    async function restoreCopy() {
+      const text = localStorage.getItem('dp_review_text') || document.getElementById('review-box').innerText;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          toast("✅ 已恢复复制！");
+        } else {
+          const textArea = document.createElement("textarea");
+          textArea.value = text;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-9999px";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          toast("✅ 已恢复复制(兼容模式)！");
         }
-    </script>
+        document.getElementById('restore-btn').classList.add('hidden');
+      } catch (e) {
+        toast("❌ 恢复复制失败，请手动长按文案复制", 2200);
+      }
+    }
+
+    /***********************
+     * 4) 唤起点评：浏览器内尽量冷启动成功；失败用“官方打开页”兜底
+     *
+     * 关键变化：
+     * - 微信内：不做跳转，只提示去浏览器打开（避免走 m.dianping.com 覆盖剪贴板）
+     * - Android：intent + package=com.dianping.v1，fallback 指向官方“已安装打开”页
+     * - iOS：先 scheme，失败再去官方“已安装打开”页
+     ***********************/
+    function jumpToApp() {
+      // 4.1 微信内置浏览器：只引导
+      if (isWechat()) {
+        document.getElementById('wx-mask').classList.remove('hidden');
+        toast("请先在浏览器打开本页，再唤起点评");
+        return;
+      }
+
+      const text = localStorage.getItem('dp_review_text') || document.getElementById('review-box').innerText;
+
+      // 这个官方页通常用于“已安装打开/未安装下载”的兜底（比 m.dianping.com 更适合做 fallback）
+      const officialOpenPage = "https://h5.dianping.com/app/app-m-user-growth/index.html";
+
+      // 你也可以把“店铺/团购/点评页”的 H5 链接放进 query，再让官方页去做打开（如果你有目标链接的话）
+      // const officialOpenPage = "https://h5.dianping.com/app/app-m-user-growth/index.html?redirect=" + encodeURIComponent("https://www.dianping.com/shop/xxxx");
+
+      // 4.2 记录时间：用于判断是否成功切到 App（JS 会被挂起）
+      const start = Date.now();
+      let didHide = false;
+
+      const onVis = () => {
+        if (document.hidden) didHide = true;
+        else {
+          // 回来了：提示用户如果文案被覆盖可恢复
+          // （不能自动写剪贴板，很多浏览器要求用户手势）
+          document.getElementById('restore-btn').classList.remove('hidden');
+        }
+      };
+      document.addEventListener('visibilitychange', onVis, { once: true });
+
+      // 4.3 Android：intent 优先（冷启动更稳），失败用官方页兜底
+      if (isAndroid()) {
+        const fallback = encodeURIComponent(officialOpenPage);
+        const intentUrl =
+          "intent://#Intent;" +
+          "scheme=dianping;" +
+          "package=com.dianping.v1;" +
+          "S.browser_fallback_url=" + fallback + ";" +
+          "end";
+
+        // 直接跳转（用户点击触发）
+        window.location.href = intentUrl;
+
+        setTimeout(() => {
+          const dt = Date.now() - start;
+          if (!didHide && dt < 1800) {
+            // 没切出去：大概率没装/被拦/失败 → 去官方页兜底
+            window.location.href = officialOpenPage;
+          }
+        }, 1200);
+
+        return;
+      }
+
+      // 4.4 iOS：scheme 先试；失败去官方页兜底
+      if (isIOS()) {
+        // 注意：具体 path 是否有效取决于点评内部注册，这里用最保守的“打开 App”
+        const schemeUrl = "dianping://";
+
+        window.location.href = schemeUrl;
+
+        setTimeout(() => {
+          const dt = Date.now() - start;
+          if (!didHide && dt < 1800) {
+            // 没切出去：去官方页（可能触发 Universal Link/引导打开）
+            window.location.href = officialOpenPage;
+          }
+        }, 1200);
+
+        return;
+      }
+
+      // 4.5 其他环境：直接去官方页
+      window.location.href = officialOpenPage;
+    }
+
+    // 点击遮罩任意区域关闭（方便调试）
+    document.getElementById('wx-mask').addEventListener('click', () => {
+      document.getElementById('wx-mask').classList.add('hidden');
+    });
+  </script>
 </body>
 </html>
