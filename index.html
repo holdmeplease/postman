@@ -3,56 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>剧本评价助手</title>
+    <title>剧本评价助手 - 调试版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .btn-gradient {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee0979 100%);
-        }
-        /* 遮罩层动画 */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.3s ease-out;
-        }
+        .btn-gradient { background: linear-gradient(135deg, #ff6b6b 0%, #ee0979 100%); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen p-4 flex flex-col items-center">
 
     <div id="wx-mask" class="hidden fixed inset-0 bg-black/90 z-50 animate-fade-in flex flex-col items-end p-6">
         <img src="https://img.icons8.com/ios/100/ffffff/curved-arrow.png" class="w-16 h-16 rotate-[270deg] mb-4">
-        <div class="text-white text-right space-y-4">
+        <div class="text-white text-right">
             <h2 class="text-2xl font-bold">请点击右上角 [...]</h2>
-            <p class="text-lg text-gray-300">选择 <span class="text-pink-400 font-bold">[在浏览器打开]</span></p>
-            <div class="h-px bg-gray-700 my-4"></div>
-            <p class="text-sm text-gray-400 italic">以便一键完成“文案复制”与“APP跳转”</p>
+            <p class="text-lg">选择 <span class="text-pink-400 font-bold">[在浏览器打开]</span></p>
         </div>
     </div>
 
-    <div class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden mb-8 mt-4 border border-gray-100">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden mb-6 mt-4">
         <div class="aspect-square bg-gray-100 relative">
             <img id="role-img" src="" class="w-full h-full object-cover hidden">
             <div id="img-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-400">正在准备角色...</div>
         </div>
         <div class="p-6">
-            <h2 id="role-name" class="text-2xl font-black text-gray-800 mb-3">加载中...</h2>
-            <div id="review-box" class="bg-gray-50 p-4 rounded-2xl text-gray-600 leading-relaxed text-sm italic border border-gray-50">
-                加载中...
-            </div>
+            <h2 id="role-name" class="text-2xl font-black text-gray-800 mb-2">加载中...</h2>
+            <div id="review-box" class="bg-gray-50 p-4 rounded-2xl text-gray-600 leading-relaxed text-sm">正在加载文案...</div>
         </div>
     </div>
 
-    <div class="w-full max-w-md">
-        <button onclick="handleMainAction()" class="w-full btn-gradient text-white font-black py-5 rounded-2xl shadow-lg active:scale-95 transition-all text-lg flex items-center justify-center gap-2">
-            <span>复制文案并去评价</span>
-        </button>
-        <p class="text-center text-gray-400 text-xs mt-4">Powered by PSTMAN · 剧本杀评价助手</p>
+    <div class="w-full max-w-md space-y-4">
+        <div class="flex gap-3">
+            <button onclick="copyReviewText()" class="flex-1 bg-white border-2 border-pink-500 text-pink-600 font-bold py-4 rounded-xl active:scale-95 transition-all">
+                1. 复制评价文案
+            </button>
+            
+            <button onclick="jumpToApp()" class="flex-1 btn-gradient text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
+                2. 打开点评 APP
+            </button>
+        </div>
+        <p class="text-center text-gray-400 text-[10px]">调试模式：先点击1（若弹窗提示失败请手动长按），再点击2</p>
     </div>
 
     <script>
-        // 1. 初始化数据 (请替换为您 Python 脚本生成的逻辑)
+        // 1. 初始化数据
         const urlParams = new URLSearchParams(window.location.search);
         const roleId = urlParams.get('id') || '0';
         const roles = [
@@ -64,50 +58,54 @@
         document.getElementById('review-box').innerText = role.text;
         const img = document.getElementById('role-img');
         img.src = role.img;
-        img.onload = () => {
-            img.classList.remove('hidden');
-            document.getElementById('img-placeholder').classList.add('hidden');
-        };
+        img.onload = () => { img.classList.remove('hidden'); document.getElementById('img-placeholder').classList.add('hidden'); };
 
-        // 2. 核心逻辑：判断环境并执行动作
-        function isWechat() {
-            return /MicroMessenger/i.test(navigator.userAgent);
+        // 2. 微信环境检测
+        function isWechat() { return /MicroMessenger/i.test(navigator.userAgent); }
+        if (isWechat()) document.getElementById('wx-mask').classList.remove('hidden');
+
+        // 3. 兼容性复制逻辑
+        async function copyReviewText() {
+            const text = document.getElementById('review-box').innerText;
+            
+            // 策略 A: 优先使用现代 API
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    alert("✅ 复制成功！请点击“打开点评”按钮");
+                    return;
+                } catch (err) { console.error("现代复制失败", err); }
+            }
+
+            // 策略 B: 传统输入框选中复制 (兜底)
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) alert("✅ 复制成功(兼容模式)！");
+                else throw new Error("Copy command failed");
+            } catch (err) {
+                alert("❌ 复制失败，请手动长按文案复制");
+            }
+            document.body.removeChild(textArea);
         }
 
-        // 页面加载时：如果是微信则直接显示遮罩，不再让用户多点一次按钮
-        window.onload = function() {
-            if (isWechat()) {
-                document.getElementById('wx-mask').classList.remove('hidden');
-            }
-        };
-
-        async function handleMainAction() {
-            if (isWechat()) {
-                // 如果用户手动关闭了遮罩又点了按钮，再次显示遮罩
-                document.getElementById('wx-mask').classList.remove('hidden');
-                return;
-            }
-
-            // 在浏览器环境下的完美流程
-            const text = document.getElementById('review-box').innerText;
-            try {
-                // 执行复制
-                await navigator.clipboard.writeText(text);
-                
-                // 执行跳转
-                // 使用 Scheme 直接唤起，浏览器环境通常会直接成功
-                window.location.href = "dianping://search";
-                
-                // 延迟保底跳转 H5
-                setTimeout(() => {
-                    if (!document.hidden) {
-                        window.location.href = "https://m.dianping.com";
-                    }
-                }, 2000);
-
-            } catch (err) {
-                alert("复制失败，请手动长按文字复制");
-            }
+        // 4. 跳转逻辑
+        function jumpToApp() {
+            // 在普通浏览器环境下，直接触发协议
+            window.location.href = "dianping://search";
+            
+            // 保底跳转
+            setTimeout(() => {
+                if (!document.hidden) {
+                    window.location.href = "https://m.dianping.com";
+                }
+            }, 1500);
         }
     </script>
 </body>
