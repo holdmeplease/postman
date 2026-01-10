@@ -97,15 +97,22 @@
 
         // 4. 跳转逻辑
         function jumpToApp() {
-            // 在普通浏览器环境下，直接触发协议
-            window.location.href = "dianping://search";
+            const isAndroid = /Android/i.test(navigator.userAgent);
             
-            // 保底跳转
+            if (isAndroid) {
+                // 这是一条标准的安卓 Intent 唤起指令，指定了点评的包名
+                // 这种方式在系统自带浏览器里成功率极高，且能跳过网页拦截
+                window.location.href = "intent://search#Intent;scheme=dianping;package=com.dianping.v1;end";
+            } else {
+                window.location.href = "dianping://search";
+            }
+        
+            // 保底跳转时间拉长，给系统唤起留出更多时间
             // setTimeout(() => {
             //     if (!document.hidden) {
             //         window.location.href = "https://m.dianping.com";
             //     }
-            // }, 1500);
+            // }, 2500);
         }
     </script>
 </body>
