@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>剧本评价助手 - 调试版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -16,11 +16,11 @@
 
   <!-- 微信引导遮罩 -->
   <div id="wx-mask" class="hidden fixed inset-0 bg-black/90 z-50 animate-fade-in flex flex-col items-end p-6">
-    <img src="https://img.icons8.com/ios/100/ffffff/curved-arrow.png" class="w-16 h-16 rotate-[270deg] mb-4">
+    <img src="https://img.icons8.com/ios/100/ffffff/curved-arrow.png" class="w-16 h-16 rotate-[270deg] mb-4" />
     <div class="text-white text-right">
       <h2 class="text-2xl font-bold">请点击右上角 [...]</h2>
       <p class="text-lg">选择 <span class="text-pink-400 font-bold">[在浏览器打开]</span></p>
-      <p class="text-sm mt-2 opacity-80">在浏览器中再点“打开点评 APP”，可避免剪贴板被覆盖</p>
+      <p class="text-sm mt-2 opacity-80">为避免剪贴板被覆盖，请在浏览器打开后再唤起点评</p>
     </div>
   </div>
 
@@ -31,14 +31,15 @@
 
   <div class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden mb-6 mt-4">
     <div class="aspect-square bg-gray-100 relative">
-      <img id="role-img" src="" class="w-full h-full object-cover hidden">
+      <img id="role-img" src="" class="w-full h-full object-cover hidden" />
       <div id="img-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-400">正在准备角色...</div>
     </div>
+
     <div class="p-6">
       <h2 id="role-name" class="text-2xl font-black text-gray-800 mb-2">加载中...</h2>
       <div id="review-box" class="bg-gray-50 p-4 rounded-2xl text-gray-600 leading-relaxed text-sm">正在加载文案...</div>
 
-      <!-- 新增：剪贴板恢复按钮（被覆盖时用） -->
+      <!-- 恢复复制按钮（剪贴板被覆盖时用） -->
       <button id="restore-btn"
               onclick="restoreCopy()"
               class="hidden mt-4 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl active:scale-95 transition-all">
@@ -49,15 +50,30 @@
 
   <div class="w-full max-w-md space-y-4">
     <div class="flex gap-3">
-      <button onclick="copyReviewText()" class="flex-1 bg-white border-2 border-pink-500 text-pink-600 font-bold py-4 rounded-xl active:scale-95 transition-all">
+      <button onclick="copyReviewText()"
+              class="flex-1 bg-white border-2 border-pink-500 text-pink-600 font-bold py-4 rounded-xl active:scale-95 transition-all">
         1. 复制评价文案
       </button>
 
-      <button onclick="jumpToApp()" class="flex-1 btn-gradient text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
+      <button onclick="jumpToApp()"
+              class="flex-1 btn-gradient text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all">
         2. 打开点评 APP
       </button>
     </div>
-    <p class="text-center text-gray-400 text-[10px]">建议：先点1复制，再点2打开点评；若从别的页面回来发现文案没了，点“恢复复制”。</p>
+
+    <p class="text-center text-gray-400 text-[10px]">
+      建议：先点1复制，再点2打开点评；如发现剪贴板被改了，点“恢复复制”。
+    </p>
+
+    <!-- 手动打开提示区（冷启动失败时显示） -->
+    <div id="manual-open-box"
+         class="hidden w-full max-w-md bg-white border border-gray-200 rounded-2xl p-4 text-sm text-gray-700">
+      <div class="font-bold mb-1">如果没有自动打开点评：</div>
+      <ol class="list-decimal pl-5 space-y-1">
+        <li>请手动打开「大众点评」App（桌面/最近任务）。</li>
+        <li>回到本页，点击上方的「🔁 恢复复制」再去粘贴评价。</li>
+      </ol>
+    </div>
   </div>
 
   <script>
@@ -73,11 +89,17 @@
     }
 
     function isWechat() { return /MicroMessenger/i.test(navigator.userAgent); }
-    function isAndroid() { return /Android/i.test(navigator.userAgent); }
-    function isIOS() { return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
+
+    // 微信环境提示遮罩
+    if (isWechat()) {
+      document.getElementById('wx-mask').classList.remove('hidden');
+      document.getElementById('wx-mask').addEventListener('click', () => {
+        document.getElementById('wx-mask').classList.add('hidden');
+      });
+    }
 
     /***********************
-     * 1) 初始化数据
+     * 1) 初始化数据（示例）
      ***********************/
     const urlParams = new URLSearchParams(window.location.search);
     const roleId = urlParams.get('id') || '0';
@@ -98,14 +120,7 @@
     };
 
     /***********************
-     * 2) 微信环境：只做引导，不尝试唤起
-     ***********************/
-    if (isWechat()) {
-      document.getElementById('wx-mask').classList.remove('hidden');
-    }
-
-    /***********************
-     * 3) 复制逻辑：复制成功后把文案持久化，防止被覆盖
+     * 2) 复制逻辑：复制成功后把文案持久化，防止被覆盖
      ***********************/
     async function copyReviewText() {
       const text = document.getElementById('review-box').innerText;
@@ -114,6 +129,7 @@
       localStorage.setItem('dp_review_text', text);
       localStorage.setItem('dp_review_ts', String(Date.now()));
       document.getElementById('restore-btn').classList.add('hidden');
+      document.getElementById('manual-open-box').classList.add('hidden');
 
       // 策略 A: Clipboard API
       if (navigator.clipboard && window.isSecureContext) {
@@ -144,7 +160,7 @@
       document.body.removeChild(textArea);
     }
 
-    // 新增：恢复复制
+    // 恢复复制
     async function restoreCopy() {
       const text = localStorage.getItem('dp_review_text') || document.getElementById('review-box').innerText;
       try {
@@ -170,116 +186,92 @@
     }
 
     /***********************
-     * 4) 唤起点评：浏览器内尽量冷启动成功；失败用“官方打开页”兜底
-     *
-     * 关键变化：
-     * - 微信内：不做跳转，只提示去浏览器打开（避免走 m.dianping.com 覆盖剪贴板）
-     * - Android：intent + package=com.dianping.v1，fallback 指向官方“已安装打开”页
-     * - iOS：先 scheme，失败再去官方“已安装打开”页
+     * 3) 唤起逻辑（方案A）
+     * - 不走点评官方H5（避免剪贴板风控覆盖）
+     * - 能热启动就热启动；冷启动失败就提示用户手动打开点评
      ***********************/
-      function jumpToApp() {
-        // 0) 微信：只引导外部浏览器
-        if (/MicroMessenger/i.test(navigator.userAgent)) {
-          document.getElementById('wx-mask').classList.remove('hidden');
-          toast("请先在浏览器打开本页，再唤起点评");
-          return;
-        }
-      
-        const ua = navigator.userAgent;
-        const isAndroid = /Android/i.test(ua);
-        const isIOS = /iPhone|iPad|iPod/i.test(ua);
-      
-        // 1) 图2：官方唤起/下载页（你验证过它能冷启动成功）
-        const evokeUrl = "https://h5.dianping.com/app/app-m-user-growth/index.html";
-      
-        // 2) 最终兜底：应用商店（避免“啥也没发生”）
-        const marketUrl = "market://details?id=com.dianping.v1";
-      
-        // 3) 剪贴板保护：每次点“打开点评”前，把文案再存一次
-        const text = localStorage.getItem('dp_review_text') || document.getElementById('review-box').innerText;
-        localStorage.setItem('dp_review_text', text);
-        localStorage.setItem('dp_review_ts', String(Date.now()));
-      
-        // 4) 回到页面后给“恢复复制”按钮（你页面里已有 restoreCopy）
-        let didHide = false;
-        const markHide = () => { didHide = true; };
-        window.addEventListener("blur", markHide, { once: true });
-        document.addEventListener("visibilitychange", () => {
-          if (document.hidden) didHide = true;
-          else document.getElementById('restore-btn')?.classList.remove('hidden');
-        }, { once: true });
-      
-        if (isAndroid) {
-          /**
-           * ✅ 关键策略：
-           * - Chrome/Chrome系：走 intent（成功率高）
-           * - 系统自带浏览器/其它：直接跳图2（避免图1“打开无响应”的系统条）
-           */
-          const isChromeLike =
-            /\bChrome\/|CriOS|EdgA|SamsungBrowser/i.test(ua) && !/Firefox/i.test(ua);
-      
-          if (!isChromeLike) {
-            // 系统自带浏览器：直接到图2
-            window.location.href = evokeUrl;
-      
-            // 再兜底：如果用户停留在图2且没装/打不开，2.5s 后给商店
-            setTimeout(() => {
-              // 注意：这里不判断 didHide，因为图2也可能会让页面不隐藏
-              // 主要目的是：避免“用户点了按钮后没任何后续”
-              window.location.href = marketUrl;
-            }, 2500);
-      
-            return;
-          }
-      
-          // Chrome系：先 intent，失败再去图2
-          const fallback = encodeURIComponent(evokeUrl);
-          const intentUrl =
-            "intent://dianping/open#Intent;" +
-            "scheme=dianping;" +
-            "package=com.dianping.v1;" +
-            "action=android.intent.action.VIEW;" +
-            "category=android.intent.category.BROWSABLE;" +
-            "launchFlags=0x10000000;" +
-            "S.browser_fallback_url=" + fallback + ";" +
-            "end";
-      
-          const start = Date.now();
-      
-          // 弹窗会阻塞 timer，所以用 focus 做兜底
-          const fallbackIfNeeded = () => {
-            const dt = Date.now() - start;
-            if (!didHide && dt > 600) {
-              window.location.href = evokeUrl;
-              setTimeout(() => window.location.href = marketUrl, 2500);
-            }
-          };
-          window.addEventListener("focus", fallbackIfNeeded, { once: true });
-      
-          window.location.replace(intentUrl);
-          setTimeout(fallbackIfNeeded, 1400);
-          return;
-        }
-      
-        if (isIOS) {
-          // iOS：先 scheme，再图2兜底
-          const start = Date.now();
-          window.location.href = "dianping://";
-          setTimeout(() => {
-            if (!didHide && Date.now() - start < 1800) window.location.href = evokeUrl;
-          }, 1200);
-          return;
-        }
-      
-        // 其它平台直接去图2
-        window.location.href = evokeUrl;
+    function jumpToApp() {
+      // 微信内：只引导外部浏览器
+      if (isWechat()) {
+        document.getElementById('wx-mask').classList.remove('hidden');
+        toast("请在浏览器打开本页，再尝试打开点评");
+        return;
       }
 
+      const ua = navigator.userAgent;
+      const isAndroid = /Android/i.test(ua);
+      const isHarmony = /HarmonyOS/i.test(ua) || /HUAWEI/i.test(ua) || /Huawei/i.test(ua);
 
-    // 点击遮罩任意区域关闭（方便调试）
-    document.getElementById('wx-mask').addEventListener('click', () => {
-      document.getElementById('wx-mask').classList.add('hidden');
-    });
+      // 兜底到应用市场（不会覆盖剪贴板）
+      const marketUrl = "market://details?id=com.dianping.v1";
+
+      // 手动提示
+      const showManualHint = () => {
+        toast("未能自动打开点评：请手动打开大众点评后回来点“恢复复制”", 2400);
+        document.getElementById('restore-btn')?.classList.remove('hidden');
+        document.getElementById('manual-open-box')?.classList.remove('hidden');
+      };
+
+      // 点击前把文案存起来（防止任何情况丢）
+      const text = localStorage.getItem('dp_review_text') || document.getElementById('review-box').innerText;
+      localStorage.setItem('dp_review_text', text);
+      localStorage.setItem('dp_review_ts', String(Date.now()));
+
+      // 回到页面后给恢复按钮
+      document.getElementById('restore-btn')?.classList.remove('hidden');
+
+      // 监测是否真正切走（热启动成功时会触发）
+      let didHide = false;
+      const markHide = () => { didHide = true; };
+      window.addEventListener('blur', markHide, { once: true });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) didHide = true;
+        else document.getElementById('restore-btn')?.classList.remove('hidden');
+      }, { once: true });
+
+      if (!isAndroid) {
+        showManualHint();
+        return;
+      }
+
+      // 1) scheme 尝试（热启动成功率高）
+      const schemeTry = () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = "dianping://";
+        document.body.appendChild(iframe);
+        setTimeout(() => document.body.removeChild(iframe), 600);
+      };
+
+      // 2) intent 尝试（部分浏览器可用；Firefox 跳过）
+      const intentTry = () => {
+        const isFirefox = /Firefox/i.test(ua);
+        if (isFirefox) return;
+        const intentUrl =
+          "intent://dianping/open#Intent;" +
+          "scheme=dianping;" +
+          "package=com.dianping.v1;" +
+          "action=android.intent.action.VIEW;" +
+          "category=android.intent.category.BROWSABLE;" +
+          "launchFlags=0x10000000;" +
+          "end";
+        window.location.href = intentUrl;
+      };
+
+      schemeTry();
+      setTimeout(() => {
+        intentTry();
+      }, isHarmony ? 120 : 50);
+
+      // 兜底：没切走就提示手动打开（不跳点评H5，避免剪贴板覆盖）
+      setTimeout(() => {
+        if (!didHide) {
+          // 如果你想更“强”，可以先尝试跳应用市场确认安装/更新：
+          // window.location.href = marketUrl;
+          showManualHint();
+        }
+      }, 1400);
+    }
   </script>
 </body>
 </html>
